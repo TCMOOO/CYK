@@ -1,0 +1,1142 @@
+<!-- 
+
+应用简介：
+
+本程序着重于用既有规则对规则范围内的句子进行词性标注，使用CYK算法。
+
+
+本着现代、可视、用鼠标的理念，我们决定用前端技术进行开发，在开发过程中我们禁不住进行了一百多项用户体验改进，着力为使用者提供最舒爽的词性标注体验。
+
+
+本文档可直接用 Chrome 等现代浏览器打开，由于只在 Arch
+Linux 和 MacOS 环境下进行过测试，若在 Win 下出现乱码，请尝试 ctrl+右键 打开浏览器菜单，调整编码为 UTF-8 。 
+
+
+使用方式：
+
+直接在输入框中输入句子，或按住右键上划，用环形菜单填入文字，然后回车，仔细观察表格和parse tree ，享受它们在现代前端技术下带来的美妙视觉盛宴。
+
+
+
+应用原理如下：
+
+1.获取输入并分割然后把原句显示在页面上半部分。
+2.在下半部分创建一个表格，在表格左上角上加上激励人心的标语，并在第一行与第一列标上序号。
+3.用表格内容给原句添加上 parse tree
+4.加一些鼠标悬浮显示等特效，因为内容太多了。
+
+
+
+第三步的细节如下：
+
+0.载入语法库
+1.先用函数写一个与语法库配套的搜索引擎：
+2.首先遍历grammars表中的value，和单词比对，看看每个单词都对应于什么key
+3.然后把对应的标记放进数组里，还要处理搜索带两个元素的数组的情况
+同种方法将每个单词对应的可能性放在之前填入的key后面
+
+
+4.首先向表格填对角线：
+先填对角线上的矩阵，把对角线上的每一个东西都变成从语法树的根来的路径，并加上可能性。
+在表格中只填充字符串和数字，我们要在每个可能性之前加上它是从哪来的 [[├,0,self,vp,4,┤](//从自身来，即单叉),行的一种可能性,可能性大小,[├,terminal,┤](//最末端的树叉),另种可能性，另一可能性大小]
+
+
+5.然后对非对角线上的标记进行归并，找到上位标记：
+先在每个单词中表上数字，如0 The 1 flights 2 include 3 a 4 并给非对角线的表格中标上坐标i、j，方便讨论。
+设变量d，当要填(i,j)时，利用循环使d在(i,j)中刷一遍
+让(i,d)和(d,j)两两匹配，用搜索引擎找到根，覆盖掉之前填入的坐标，将根填入表格 
+形式如[├,0,np,1,vp,4,┤,s,0.0005399999999999]，表示s从(0,1)中的np与(1,4)中的vp得来，概率为0.0005399999999999，概率已在搜索时计算过了。
+
+6.处理表格中重复的项，取其中的最大值：
+写了一个工具函数isRpeat(arr),返回传入数组中重复的项
+对原先的数组循环，寻找重复的项中的最大值，放进临时数组，然后把不重复的项也放进临时数组
+然后用临时数组取代之前的数组
+最后用之前填对角线方法，对新数组中的各项也往上寻根，并加到对应项之前，放上['├','self','┤']，表示这是从自己来的。
+
+7.广度优先搜索二叉树，生成可视化最优语法,用括号括出分析树
+
+
+以上内容都由代码中的注释赞助。
+
+
+代码采用了接近伪代码的编程风格，并且添加了大量注释和变量值的示例，在一定智商范围内是较好阅读的。
+
+
+
+撰写感言：
+
+在编写过程中我们学到很多，我们看到很多，仿佛天边的鸿雁，没有到过大海就永远只停留在芦苇边。
+
+在此次实践过后，我们将深化 NLP 对日常生活的改革作用。
+以体现水平为责任，积极推进标注工作程序化。
+以畅通安全为保障，积极推进标注工作智能化。 
+以立此存照为借鉴，积极推进标注工作规范化。
+以解决问题为重点，积极推进标注工作有序化。
+以服务机关为宗旨，积极推进标注服务优质化
+以统筹兼顾为重点，积极推进标注工作常态化。
+
+在党的领导下，我们会以更加坚定的姿态面对下一次实践，创思路，订制度，不断提高编程水平，抓业务，重实效，开创 NLP 新局面。
+
+在实践中，我们还认识到，要做好 NLP 工作，我们一定要统一思想，提高认识，认清形势，明确任务，完善机制，做到路线正确和思想正确。
+
+
+如果有进一步的实践机会，在屠教授光辉的进一步指导下，我们必将争做下面两点：
+一、注重学习，自身素质取得新提高
+二、围绕中心，不断开创工作新局面
+
+
+
+
+感谢屠教授知无不言言无不尽的无私指导，感谢陈一默和林东吴的英勇撰写，感谢 SublimeText 提供免费的编辑器和自动补完，感谢 TA 详尽严密的单元测试，感谢 bilibili 在提供适合编程的音乐方面的完美，感谢小米手机和腾讯提供便捷的联络技术支持。
+
+
+
+
+
+ -->
+
+
+<html>
+  <head>
+	<title></title>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" /> 
+
+
+	<script src="http://lib.sinaapp.com/js/jquery/1.9.1/jquery-1.9.1.min.js"></script>
+	<script src="http://res.layui.com/lay/lib/layer/src/layer.js?v=1.93"></script>
+
+
+	<style>
+	svg {
+		fill: #03A9F4;opacity: 0.6;
+	}
+
+
+	svg :hover {
+		opacity: 0.3;
+	}
+
+	body {
+		text-align: center;
+	}
+
+	.black {
+		background-color: #212121;
+		width: 50%;
+		height: 30%;
+
+
+		margin: 20px auto;
+		padding: 20px;
+
+
+		text-align: center;
+		box-shadow: 0px 0px 15px 5px #888888;
+
+	}
+
+
+	#wrapper {
+
+		color: #E0E0E0;
+		height: 55%;
+		width: 90%
+	}
+
+
+	#wrapper > strong {
+		color: #616161;
+	}
+
+
+
+
+	input {
+		width: 85%;
+		height: 50px;
+		padding: 20px;
+		margin-top: 40px;
+		background-color: #212121;
+		border: 0;
+
+
+		font-size: 30px;
+		color: white;
+		text-align: center;
+		
+	}
+
+
+	p {
+		color: white;
+		font-size: 18px;
+	}
+
+
+	td {
+		border: 2px;
+		border-color: #212121;
+
+	}
+
+
+	td > div {
+		color: white;
+		text-align: center;
+		border: 0;
+		padding: 20px;
+		margin: 0;
+
+		font-size: 24px;
+
+
+		width: 85px;
+		height: 120px;
+
+
+		color: #EEEEEE;
+		background-color: #313131;
+		box-shadow: none;
+
+
+		word-wrap:break-word;
+		overflow: hidden;
+
+
+		z-index: 100;
+
+
+
+	}
+
+
+	table {
+		margin: 20px auto;
+		border: 0;
+
+
+
+		background-color: #212121;
+
+
+
+	}
+
+
+	#antiAmbiguty {
+		width: 100px;
+		height: 20px;
+		
+		color: white;
+
+
+		position: absolute;
+		top: 20px;
+		left: 20px;
+	}
+
+
+	.red {
+		background-color: pink;
+	}
+
+	</style>
+
+
+	<script type="text/javascript">
+	var antiAmbiguty = true;
+	var hoverTime = 20000;
+
+	$(function() {
+		$('div').onetwoRadial({
+			events: [function(){$('input').val('book').focus();},function(){$('input').val('Book the dinner flight').focus();},function(){$('input').val('The flights include a meal').focus();},function(){$('input').val('Book the flight from Houston to TWA').focus();},function(){$('input').val('Can you show me the meal on the flight from Houston to TWA').focus();},function(){$('input').val('Show me the dinner flights include a meal').focus();}],
+		});
+
+
+
+
+
+		$('input').focus();
+
+
+
+		$('#antiAmbiguty').click(function() {
+			antiAmbiguty = !antiAmbiguty;
+			$('#antiAmbiguty').toggleClass('red');
+			$('input').focus();
+
+		});
+
+
+
+
+
+// ◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇
+// ◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇
+// ◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇
+// ◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇
+// ◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◆◆◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇
+// ◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◆◆◆◇◇◇◇◇◇◇◇◇◇◇◇◇◇
+// ◇◇◇◇◇◇◇◇◇◆◆◆◆◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◆◆◆◇◇◇◇◇◇◇◇◇◇◇◇◇◇
+// ◇◇◇◇◇◇◇◇◇◇◆◆◆◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◆◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇
+// ◇◇◇◇◇◇◇◇◇◇◇◆◆◆◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◆◇◇◇◇◇◇◇◆◇◇◇◇◇◇◆◆◇◇◇◇◇◇◇
+// ◇◇◇◇◇◇◇◇◇◇◇◇◆◆◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◆◆◆◇◇◇◇◆◆◇◇◇◇◇◇◆◆◇◇◇◇◇◇◇
+// ◇◇◇◇◇◇◇◇◇◇◇◇◆◆◆◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◆◆◆◇◇◇◇◆◆◇◇◇◇◇◇◆◆◇◇◇◇◇◇◇
+// ◇◇◇◇◇◇◇◇◇◇◇◇◇◆◆◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◆◆◇◇◇◇◆◆◇◇◇◇◇◇◆◆◇◇◇◇◇◇◇
+// ◇◇◇◇◇◇◇◇◇◇◇◇◇◆◆◆◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◆◆◇◇◇◇◆◆◇◇◇◇◇◇◆◆◇◇◇◇◇◇◇
+// ◇◇◇◇◇◇◇◇◇◇◇◇◆◆◆◆◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◆◆◇◇◇◇◆◆◇◇◇◇◇◇◆◆◇◇◇◇◇◇◇
+// ◇◇◇◇◇◇◇◇◇◇◇◇◆◆◆◆◆◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◆◆◇◇◇◇◆◆◇◇◇◇◇◆◆◇◇◇◇◇◇◇◇
+// ◇◇◇◇◇◇◇◇◇◇◇◆◆◆◇◆◆◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◆◆◇◇◇◆◆◆◆◆◆◆◆◆◆◇◇◇◇◇◇◇◇
+// ◇◇◇◇◇◇◇◇◇◇◇◆◆◇◇◇◆◆◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◇◇◇◇◇◇◇◇
+// ◇◇◇◇◇◇◇◇◇◇◆◆◆◇◇◇◆◆◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◆◆◆◆◆◇◇◇◆◆◇◇◇◇◆◆◇◇◇◇◇◇◇◇
+// ◇◇◇◇◇◇◇◇◇◇◆◆◇◇◇◇◇◆◆◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◆◆◇◇◇◇◇◆◆◇◇◇◇◇◇◇
+// ◇◇◇◇◇◇◇◇◇◆◆◇◇◇◇◇◇◆◆◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◆◆◇◇◇◇◇◇◇◆◇◇◇◇◇◇◇◆◆◇◇◇◇◇◇
+// ◇◇◇◇◇◇◇◇◆◆◆◇◇◇◇◇◇◇◆◆◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◆◆◆◇◇◇◇◇◇◆◇◇◇◇◇◇◇◆◆◇◇◇◇◇◇
+// ◇◇◇◇◇◇◇◆◆◆◇◇◇◇◇◇◇◇◆◆◆◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◆◆◇◇◇◇◇◇◆◇◇◇◇◇◇◇◆◆◇◇◇◇◇◇
+// ◇◇◇◇◇◇◆◆◆◇◇◇◇◇◇◇◇◇◇◆◆◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◆◇◇◇◇◇◇◇◆◇◇◇◇◇◇◆◆◇◇◇◇◇◇◇
+// ◇◇◇◇◇◆◆◆◇◇◇◇◇◇◇◇◇◇◇◆◆◆◇◇◇◇◇◇◇◇◇◇◇◇◇◇◆◆◇◇◇◇◇◇◆◇◇◇◇◇◇◆◆◇◇◇◇◇◇◇
+// ◇◇◇◇◆◆◆◇◇◇◇◇◇◇◇◇◇◇◇◇◆◆◆◆◆◇◇◇◇◇◇◇◇◇◇◇◆◆◇◇◇◇◇◇◆◇◇◇◇◇◇◆◆◇◇◇◇◇◇◇
+// ◇◇◇◆◆◆◇◇◇◇◇◇◇◇◇◇◇◇◇◇◆◆◆◆◆◆◇◇◇◇◇◇◇◇◇◇◆◆◇◇◇◆◆◆◆◆◆◆◆◆◆◆◆◇◇◇◇◇◇◇
+// ◇◇◆◆◆◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◆◇◇◇◇◇◇◇
+// ◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◆◆◆◆◆◇◇◇◇◇◇◇◇◇◇◇◆◆◇◇◇◇◇◇◇
+// ◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◆◇◇◇◇◇◇◇◇
+// ◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇
+		$('input').keyup(function(e) {
+			if(e.keyCode == "13"){
+				$('#wrapper').empty();
+
+
+				//获取输入并分割然后显示出来
+				var input = $('input').val().split(' ');
+				var inputWithIndex = '';
+				for(var i in input){
+					inputWithIndex = inputWithIndex+'<strong id="'+i+'"> '+i+' </strong>'+input[i];
+				}
+				inputWithIndex = inputWithIndex +'<strong id="'+input.length+'"> '+ input.length+' </strong>';
+				$('#wrapper').append(inputWithIndex);
+
+
+				var output = parseCYK(input);
+
+
+				//创建一个表格，搞点可视化
+				var table = $("<table border = \"1\" >");  
+				table.appendTo(($("#wrapper")));  
+				var rowNum = output.length+1;
+				var clomnNum = output.length+1;
+				for(var i=0;i<rowNum;i++){  
+					var tr=$("<tr></tr>");  
+						tr.appendTo(table);  
+						for(var j=0;j<clomnNum;j++){  
+							if(i==0){
+								if(j==0){
+									//此处用于显示激励人心的标语
+									var td=$("<td><div>爱 ！我中华</div></td>");  
+									td.appendTo(tr); 	
+								}else{
+									//此处用于显示上面的数
+								var td=$("<td><div>" + (j) + "</div></td>");  
+									td.appendTo(tr); 					
+								}	
+							}else if(j==0){
+								//此处用于显示左边的数
+								var td=$("<td><div>" + (i-1) + "</div></td>");  
+									td.appendTo(tr); 
+							}else{
+								
+								//此处用于显示词类标记
+								var td=$("<td><div>" + output[i-1][j-1] + "</div></td>");  
+									td.appendTo(tr); 
+							}
+						}  
+				}  
+				$("#wrapper").append("</table>");
+
+
+				//加一些特效
+				$(window).scroll(function() {
+ 					
+
+					if ($(document).scrollTop() >= ( $(document).height() - $(window).height() - 50) ) {
+						
+
+						$("input").animate({'margin-top':"5px"},1000);
+						$("input").parent().animate({height:"60px"},1000);
+					}
+
+
+
+				});
+
+
+				//东西太多了，加一个鼠标悬浮显示的效果
+				$('td > div').hover(function() {
+					var innerWords = $(this).html();
+					layer.msg(innerWords,{time: hoverTime});
+				});
+
+
+
+
+
+
+
+
+
+
+
+			}
+		});
+	});
+
+
+
+
+
+
+
+// ◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇
+// ◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇
+// ◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇
+// ◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇
+// ◇◇◇◇◇◇◇◆◆◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◆◆◇◇◇◇◇◇
+// ◇◇◇◇◇◇◇◆◆◆◇◇◆◆◇◇◇◇◇◇◇◆◆◇◇◇◇◇◇◇◇◇◇◇◇◆◇◇◇◇◇◇◇◇◆◇◇◇◇◇◇◇◆◆◆◇◇◇◇◇
+// ◇◇◇◇◇◇◇◇◆◆◇◇◆◆◇◆◆◆◆◆◆◆◆◇◇◇◇◇◇◇◇◇◇◇◇◆◆◇◇◇◇◇◇◆◆◆◇◇◇◇◇◇◆◆◆◇◇◇◇◇
+// ◇◇◇◇◇◇◇◇◆◇◇◇◆◆◆◆◆◆◆◆◆◆◆◇◇◇◇◇◇◇◇◇◇◇◇◆◆◆◆◆◆◆◆◆◆◆◇◇◇◇◇◇◆◆◇◇◇◇◇◇
+// ◇◇◇◇◇◇◇◇◆◇◇◇◇◆◆◇◇◇◇◇◇◆◆◇◇◇◇◇◇◇◇◇◇◇◇◆◆◆◆◆◆◆◆◆◆◆◇◆◆◇◇◇◇◆◇◇◇◇◇◇
+// ◇◇◇◇◇◇◇◇◆◇◇◇◇◆◆◇◆◆◇◇◇◆◆◇◇◇◇◇◇◇◇◇◇◇◇◇◆◇◇◇◇◇◇◇◆◆◇◆◆◆◇◇◇◆◇◇◇◇◇◇
+// ◇◇◇◇◇◇◆◆◆◆◆◆◆◆◆◇◆◆◆◇◆◆◆◇◇◇◇◇◇◇◇◇◇◇◇◇◆◇◇◆◇◇◇◇◆◆◇◇◆◆◇◇◇◆◇◇◇◇◇◇
+// ◇◇◇◇◆◆◆◆◆◆◆◇◇◆◆◇◆◆◆◇◆◆◇◇◇◇◇◇◇◇◇◇◇◇◇◇◆◇◇◆◆◇◇◇◆◇◇◇◆◆◇◇◇◆◇◇◇◇◇◇
+// ◇◇◇◇◆◆◇◇◆◆◇◇◇◆◆◇◆◆◆◇◆◆◇◇◇◇◇◇◇◇◇◇◇◇◇◇◆◇◇◆◆◆◇◇◆◇◇◇◆◆◇◇◇◆◇◇◇◇◇◇
+// ◇◇◇◇◇◇◇◇◆◇◇◇◇◆◆◇◆◆◆◇◆◆◇◇◇◇◇◇◇◇◇◇◇◇◇◇◆◇◇◇◆◆◇◇◆◇◇◇◆◆◇◇◇◆◇◇◇◇◇◇
+// ◇◇◇◇◇◇◇◆◆◆◆◆◆◆◆◇◆◆◆◇◆◆◇◇◇◇◇◇◇◇◇◇◇◇◇◇◆◇◇◇◆◆◇◇◆◇◇◇◆◆◇◇◇◆◇◇◇◇◇◇
+// ◇◇◇◆◆◆◆◆◆◆◆◆◆◆◆◇◆◆◇◇◆◆◇◇◇◇◇◇◇◇◇◇◇◇◇◇◆◇◇◇◆◆◇◆◆◇◇◇◆◆◇◇◇◆◇◇◇◇◇◇
+// ◇◇◇◆◆◆◆◆◆◇◇◇◇◆◆◇◆◆◇◇◆◆◇◇◇◇◇◇◇◇◇◇◇◇◇◇◆◇◇◆◆◇◇◆◆◇◇◇◆◆◇◇◇◆◇◇◇◇◇◇
+// ◇◇◇◇◇◇◇◆◆◇◇◇◆◆◆◇◆◆◆◇◆◆◇◇◇◇◇◇◇◇◇◇◇◇◇◇◆◇◇◆◆◇◇◆◆◇◇◇◆◆◇◇◇◆◇◇◇◇◇◇
+// ◇◇◇◇◇◇◇◆◆◆◇◇◆◆◆◇◆◆◆◆◆◆◇◇◇◇◇◇◇◇◇◇◇◇◇◆◆◇◇◆◆◇◇◆◆◇◇◆◆◆◇◇◇◆◇◇◇◇◇◇
+// ◇◇◇◇◇◇◇◆◆◆◆◆◇◆◇◆◆◆◆◆◇◆◇◇◇◇◇◇◇◇◇◇◇◇◇◆◆◇◇◆◆◇◇◆◆◇◇◆◆◆◇◇◇◆◇◇◇◇◇◇
+// ◇◇◇◇◇◇◆◆◇◆◆◆◇◇◇◆◆◇◆◇◇◇◇◇◆◇◇◇◇◇◇◇◇◇◇◆◆◇◇◆◆◇◇◇◆◇◇◇◆◆◇◇◇◆◇◇◇◇◇◇
+// ◇◇◇◇◇◇◆◆◇◇◆◆◇◇◆◆◆◇◆◇◇◇◇◇◆◇◇◇◇◇◇◇◇◇◇◇◆◇◆◆◆◆◆◇◇◇◇◇◇◇◇◇◇◆◇◇◇◇◇◇
+// ◇◇◇◇◇◆◆◇◇◇◇◆◇◆◆◆◇◇◆◇◇◇◇◇◆◇◇◇◇◇◇◇◇◇◇◇◇◇◆◆◇◇◆◆◆◇◇◇◇◇◇◇◇◆◇◇◇◇◇◇
+// ◇◇◇◇◇◆◆◇◇◇◇◇◇◆◆◇◇◇◆◇◇◇◇◆◆◆◇◇◇◇◇◇◇◇◇◇◇◆◆◆◇◇◇◆◆◆◇◇◇◇◇◇◇◆◇◇◇◇◇◇
+// ◇◇◇◇◆◆◇◇◇◇◇◇◆◆◆◇◇◇◆◇◇◇◇◆◆◆◇◇◇◇◇◇◇◇◇◇◆◆◆◇◇◇◇◇◆◆◆◇◆◆◇◇◇◆◇◇◇◇◇◇
+// ◇◇◇◆◆◇◇◇◇◇◇◆◆◆◇◇◇◇◆◆◇◇◇◆◆◆◇◇◇◇◇◇◇◇◇◆◆◆◇◇◇◇◇◇◆◆◆◇◆◆◆◆◆◆◇◇◇◇◇◇
+// ◇◇◆◆◆◇◇◇◇◆◆◆◇◇◇◇◇◇◆◆◆◆◆◆◆◆◇◇◇◇◇◇◇◇◆◆◆◇◇◇◇◇◇◇◇◆◆◇◇◇◆◆◆◆◇◇◇◇◇◇
+// ◇◇◆◆◇◇◇◇◆◆◆◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◆◆◆◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◆◆◆◇◇◇◇◇◇
+// ◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◆◆◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◆◆◇◇◇◇◇◇
+// ◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇
+function parseCYK( input ) {
+
+
+	var grammars = {
+		's': [[.80,'np','vp'],[.15,'x1','vp'],[.05,'vp']],
+		'x1': [[1,'aux','np']],
+		'np': [[.35,'pronoun'],[.30,'proper-noun'],[.20,'det','nominal'],[.15,'nominal']],
+		'nominal': [[.75,'noun'],[.20,'nominal','noun'],[.05,'nominal','pp']],
+		'vp': [[.35,'verb'],[.20,'verb','np'],[.10,'verb','x2'],[.15,'verb','pp'],[.05,'verb','x3'],[.15,'vp','pp']],
+		'x2': [[1,'np','pp']],
+		'x3': [[1,'np','np']],
+		'pp': [[1,'preposition','np']],
+		'det': [[.10,'that'],[.30,'a'],[.60,'the']],
+		'noun': [[.10,'book'],[.30,'flight'],[.15,'meal'],[.05,'money'],[.30,'flights'],[.10,'dinner']],
+		'verb': [[.25,'book'],[.25,'include'],[.20,'prefer'],[.30,'show']],
+		'pronoun': [[.40,'i'],[.05,'she'],[.15,'me'],[.40,'you']],
+		'proper-noun' : [[.60,'houston'],[.40,'twa']],
+		'aux': [[.60,'does'],[.40,'can']],
+		'preposition': [[.30,'from'],[.30,'to'],[.20,'on'],[.15,'near'],[.05,'through']]
+	}
+
+
+	//语法库配套的搜索引擎
+	function getTag( word ) {
+
+		var tagOfThis = [];
+		if( typeof word == 'string'){
+			
+			//现在我们遍历grammars表中的value，和单词比对，看看每个单词都对应于什么key
+			//然后把对应的标记放进diagonal数组里
+			for(var key in grammars){
+				for(var i=0;i<grammars[key].length;i++){
+					
+					if(grammars[key][i][1] == word.toLowerCase() && grammars[key][i].length == 2){
+						tagOfThis.push( key );
+					}
+					
+				}
+			}
+		}else if( typeof word == 'object'){
+			
+			//处理搜索带两个元素的数组的情况
+			for(var key in grammars){
+				for(var i=0;i<grammars[key].length;i++){
+					if(grammars[key][i][1] == word[0] && grammars[key][i][2] == word[1]){
+						tagOfThis.push( key );
+					}
+				}
+			}
+		}
+		return tagOfThis	
+	}
+
+
+	function getPossiblilty( word ) {
+		var possibilityOfThis = [];
+		if( typeof word == 'string'){
+			
+			//现在我们遍历grammars表中的value，和单词比对，看看每个单词都对应于什么key
+			//然后把对应的标记放进diagonal数组里
+			for(var key in grammars){
+				for(var i=0;i<grammars[key].length;i++){
+					
+					if(grammars[key][i][1] == word.toLowerCase() && grammars[key][i].length == 2){
+						possibilityOfThis.push( grammars[key][i][0] );
+					}
+					
+				}
+			}
+		}else if( typeof word == 'object'){
+			
+			//处理搜索带两个元素的数组的情况
+			for(var key in grammars){
+				for(var i=0;i<grammars[key].length;i++){
+					if(grammars[key][i][1] == word[0] && grammars[key][i][2] == word[1]){
+						possibilityOfThis.push( grammars[key][i][0] );
+					}
+				}
+			}
+		}
+		return possibilityOfThis
+	}
+
+
+
+
+	//input现在是一个数组，每个元素都是一个单词
+
+	var diagonal = [];
+	var originalPossibility = [];
+	//对于input中的每一个词丫，我们把它填进对角线里
+	for(var word in input){
+		diagonal.push( getTag(input[word]) );
+		originalPossibility.push( getPossiblilty(input[word]) );
+
+	}
+
+
+	//把对角线填进矩阵里，metrix是一个[列,[[行的一种可能性,可能性大小,另种可能性，另一可能性大小],[,]],[]]
+	var matrix = [];
+	for(var i=0;i<diagonal.length;i++){
+		var row = []
+		for(var j=0;j<diagonal.length;j++){
+
+			if(i == j){
+
+
+				//把对角线上的每一个东西都变成从语法树的根来的路径
+				//diagonal[i] 是一个['noun','verb']样的数组，含有一个或多个可能的标记
+				
+				//注意！！allPossible 只放字符串和数字！[行的一种可能性,可能性大小,另种可能性，另一可能性大小] 这样
+				//不过那是以前了，现在我们要在每个可能性之前加上它是从哪来的 [[├,0,self,vp,4,┤],行的一种可能性,可能性大小,[├,terminal,┤],另种可能性，另一可能性大小]
+				var allPossible = [];
+
+				for(var possible in diagonal[i]){
+					//diagonal[i][possible] 是一个 'noun' 之类的东西
+					//originalPossibility[i][possible] 是'book'变成'noun' 的概率
+					allPossible.unshift( originalPossibility[i][possible] );
+					allPossible.unshift( diagonal[i][possible] );
+					allPossible.unshift( ['├','terminal','┤'] );
+					
+					
+
+					//temp 现在是 ['norminal']
+					var formerTemp = diagonal[i][possible];
+					var temp = getTag(diagonal[i][possible]);
+					//possibilityOfTemp 是 'noun' 变成 ['norminal'] 的概率，形似[.75]
+					var possibilityOfTemp = [getPossiblilty(diagonal[i][possible])[0]*originalPossibility[i][possible]];
+					var isRoot = false;
+					while(!isRoot){
+						if(temp.length == 0){
+							isRoot = true;
+						}else{
+							allPossible.unshift(possibilityOfTemp[0]);
+							allPossible.unshift(temp[0]);
+							allPossible.unshift( ['├',i,'self',formerTemp,i+1,'┤'] );
+							// if( getPossiblilty(temp[0]).length != 0 )
+							// 	allPossible.unshift( getPossiblilty(temp[0]) );
+							//现在temp变成了 ['np']
+							possibilityOfTemp = getPossiblilty(temp[0]);
+							formerTemp = temp;
+							temp = getTag(temp[0]);
+						}
+					}
+				}
+
+				row.push( allPossible );
+				
+			}else{
+				row.push( [] )
+			}
+		}
+		matrix.push( row );
+	}
+
+
+
+// ◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇
+// ◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇
+// ◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇
+// ◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇
+// ◇◇◇◇◇◇◇◇◇◇◇◆◇◇◇◇◇◇◇◇◇◇◆◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◆◆◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇
+// ◇◇◇◇◇◇◆◇◇◇◇◆◆◇◇◇◇◇◇◇◆◆◆◆◇◇◇◇◇◇◇◇◇◇◇◇◇◇◆◆◇◇◇◇◆◆◇◇◇◇◇◆◆◇◇◇◇◇◇◇
+// ◇◇◇◇◇◇◆◆◇◇◇◆◆◆◆◆◆◆◆◆◆◆◆◆◇◇◇◇◇◇◇◇◇◇◇◇◇◇◆◆◆◇◇◇◆◆◇◆◆◆◆◆◆◇◇◇◇◇◇◇
+// ◇◇◇◇◇◇◆◆◆◇◇◆◆◆◆◆◆◆◆◆◇◆◆◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◆◆◇◇◇◇◆◆◆◆◆◆◆◆◆◇◇◇◇◇◇◇
+// ◇◇◇◇◇◇◇◆◆◆◇◇◆◇◇◆◇◇◆◆◇◆◆◇◇◇◇◇◇◇◇◇◇◇◇◇◇◆◆◆◇◇◇◇◇◆◆◇◇◇◇◆◆◇◇◇◇◇◇◇
+// ◇◇◇◇◇◇◇◇◆◆◇◇◆◇◇◆◇◇◆◇◇◆◆◇◇◇◇◇◇◇◇◇◇◇◇◇◇◆◆◆◆◆◆◆◇◆◆◇◇◇◆◆◇◇◇◇◇◇◇◇
+// ◇◇◇◇◇◇◇◇◆◆◇◇◆◇◇◆◆◆◆◆◆◆◆◇◇◇◇◇◇◇◇◇◇◆◆◆◆◆◆◆◆◆◆◆◇◆◆◆◆◆◆◆◆◇◇◇◇◇◇◇
+// ◇◇◇◇◇◇◇◇◇◇◇◆◆◆◆◆◆◆◆◆◆◆◆◇◇◇◇◇◇◇◇◇◇◇◆◆◆◆◆◇◇◇◇◇◆◆◆◆◆◆◆◆◆◇◇◇◇◇◇◇
+// ◇◇◇◇◇◇◇◇◇◆◇◆◆◆◆◆◆◆◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◆◆◆◆◇◇◇◇◇◆◆◇◇◇◇◇◆◆◆◇◇◇◇◇
+// ◇◇◇◇◇◇◆◆◆◆◆◇◆◇◆◆◆◇◇◇◆◆◇◇◇◇◇◇◇◇◇◇◇◇◇◇◆◆◆◆◆◇◇◆◆◆◆◆◆◆◆◆◆◆◆◆◇◇◇◇
+// ◇◇◇◆◆◆◆◆◆◆◆◇◆◇◆◆◆◆◆◆◆◆◆◇◇◇◇◇◇◇◇◇◇◇◇◆◆◇◇◆◇◇◆◆◆◆◆◆◆◆◆◆◆◇◇◇◇◇◇◇
+// ◇◇◇◇◆◆◇◇◆◆◇◇◇◆◆◆◆◆◆◆◆◆◇◇◇◇◇◇◇◇◇◇◇◇◆◆◆◆◆◆◆◆◆◆◇◆◇◇◆◆◇◆◆◇◇◇◇◇◇◇
+// ◇◇◇◇◇◇◇◆◆◇◇◇◆◆◆◇◇◇◇◆◆◇◇◇◇◇◇◇◇◇◇◇◇◇◆◆◆◆◆◆◆◆◆◇◇◆◆◆◆◆◇◆◇◇◇◇◇◇◇◇
+// ◇◇◇◇◇◇◇◆◆◇◇◆◆◆◆◆◆◇◆◆◆◇◇◇◇◇◇◇◇◇◇◇◇◇◇◆◇◇◇◆◇◇◇◇◇◆◆◆◇◇◇◆◇◇◇◇◇◇◇◇
+// ◇◇◇◇◇◇◇◆◆◇◆◆◆◇◆◆◆◆◆◆◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◆◇◇◇◆◇◆◇◆◆◆◇◆◇◇◇◇◇◇◇◇
+// ◇◇◇◇◇◇◇◆◆◇◆◆◇◇◇◆◆◆◆◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◆◆◆◆◆◇◆◆◆◆◆◆◆◇◇◇◇◇◇◇◇
+// ◇◇◇◇◇◇◇◇◆◆◇◇◇◇◇◆◆◆◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◆◆◆◆◆◆◆◆◇◇◇◆◇◇◇◇◇◆◆◆◆◆◇◇◇◇
+// ◇◇◇◇◇◇◇◆◆◇◇◇◇◇◆◆◆◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◆◆◆◆◆◇◆◇◇◇◇◇◆◆◆◆◆◆◆◆◆◆◆◆◇◇◇
+// ◇◇◇◇◇◇◇◆◆◇◇◇◇◆◆◆◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◆◇◇◇◇◆◇◆◆◆◆◆◆◆◆◆◆◆◆◇◇◇◇◇◇◇
+// ◇◇◇◆◆◆◆◆◆◆◆◆◆◆◆◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◆◇◇◆◆◆◆◇◇◇◇◇◆◇◇◇◇◇◇◇◇
+// ◇◇◇◇◆◇◇◇◆◆◆◆◆◆◆◆◆◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◆◇◇◇◇◇◇◇◇◇◇◇◆◇◇◇◇◇◇◇◇
+// ◇◇◇◇◇◇◇◇◇◇◇◇◇◆◆◆◆◆◆◆◆◆◆◆◆◆◇◇◇◇◇◇◇◇◇◇◇◇◆◆◇◇◇◇◇◇◇◇◇◇◆◆◇◇◇◇◇◇◇◇
+// ◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◆◆◆◆◆◆◆◆◆◇◇◇◇◇◇◇◇◇◇◇◇◆◆◇◇◇◇◇◇◇◇◇◇◆◆◇◇◇◇◇◇◇◇
+// ◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◆◆◆◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◆◆◇◇◇◇◇◇◇◇◇◇◆◆◇◇◇◇◇◇◇◇
+// ◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◆◇◇◇◇◇◇◇◇◇◇◇◆◇◇◇◇◇◇◇◇
+// ◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇◇
+
+
+	//对非终结标记进行归并
+	//标上数字方便讨论
+
+
+
+
+	for(var j=1;j<matrix.length;j++){
+		for(var i=j-1;i>=0;i--){
+			//循环上三角矩阵，并给非对角线的位置显示上坐标
+			matrix[i][j] = ['i:'+i+' j:'+j];
+
+			for(var d=1;d<j+1;d++){
+				//0 The 1 flights 2 include 3 a 4 中，j是3，d从1刷到3，用来填上三角的空位 0 4
+
+				for(var possibleOfLeft in matrix[i][d-1]){
+					for(var possibleOfRight in matrix[d][j]){
+						//为了填序号为i j 的格子，因为每一个被考虑的位置都有好几个可能的取值，所以遍历这些取值，两两匹配
+
+
+						var tag = getTag([ matrix[i][d-1][possibleOfLeft], matrix[d][j][possibleOfRight] ])[0]
+						var possibilityOfBeingThisTag = getPossiblilty([ matrix[i][d-1][possibleOfLeft], matrix[d][j][possibleOfRight] ])[0];
+
+
+						if(tag != undefined){
+							//debug显示左边元素xy 还有右边元素xy ，还有合成的元素
+							//console.log( i,d, matrix[i][d-1][possibleOfLeft] ,d,j+1, matrix[d][j][possibleOfRight],tag,possibilityOfBeingThisTag )
+
+
+
+							//如果之前没有填入东西，就把 'i:'+i+' j:'+j 删掉，换成我们要填的，如果已经填过东西，就继续填新的标记,还有它们的联合概率
+
+							if(matrix[i][j][0] == 'i:'+i+' j:'+j ){
+								matrix[i][j] = [tag];
+								//放上这个男人来自哪里
+								matrix[i][j].unshift(['├',i,matrix[i][d-1][possibleOfLeft],d, matrix[d][j][possibleOfRight],j+1,'┤']);
+
+								var jointProbability = possibilityOfBeingThisTag*matrix[i][d-1][parseInt(possibleOfLeft)+1]*matrix[d][j][parseInt(possibleOfRight)+1];
+								matrix[i][j].push( jointProbability );
+							}else{
+								//放上这个男人来自哪里
+								matrix[i][j].push(['├',i,matrix[i][d-1][possibleOfLeft],d, matrix[d][j][possibleOfRight],j+1,'┤']);
+
+
+								
+
+								matrix[i][j].push( tag );
+								
+
+								var jointProbability = possibilityOfBeingThisTag*matrix[i][d-1][parseInt(possibleOfLeft)+1]*matrix[d][j][parseInt(possibleOfRight)+1];
+								matrix[i][j].push( jointProbability );
+							}
+
+								
+							
+						}
+
+						
+					}
+				}
+			}
+
+
+			//反歧义模块
+			if(antiAmbiguty){
+				var repeatWord = isRepeat(matrix[i][j]);
+				if(repeatWord.length != 0){
+					
+
+					//寻找重复的项中的最大值，放进临时数组
+					var maxNumber = 0;
+					var maxIndex;
+					var newWords=[];
+					for(var repeatedItem in repeatWord){
+						
+						for(var item in matrix[i][j]){
+							if(matrix[i][j][item] == repeatWord[repeatedItem]){
+								if( matrix[i][j][parseInt(item)+1] > maxNumber){
+								maxNumber = matrix[i][j][parseInt(item)+1];
+								maxIndex = item;
+								}
+							}
+						}
+						newWords.push(matrix[i][j][parseInt(maxIndex)-1]);
+						newWords.push(matrix[i][j][maxIndex]);
+						newWords.push(maxNumber);	
+					}
+
+					//然后把不重复的项也放进临时数组
+					for(var item in matrix[i][j]){
+						if(typeof matrix[i][j][item] == 'string' && notIn(matrix[i][j][item],repeatWord ) && typeof matrix[i][j][item] != 'number'){
+							newWords.push(matrix[i][j][parseInt(item)-1]);
+							newWords.push(matrix[i][j][item]);
+							newWords.push(matrix[i][j][parseInt(item)+1]);
+						}
+					}
+					matrix[i][j] = newWords;
+				}
+			}
+		}
+	}
+
+
+	//最后看看所有tag，是不是还有上一级tag，有的话就加上去
+	for(var i=0;i<matrix.length;i++){
+		for(var j=0;j<matrix[i].length;j++){
+			if(i != j){
+				var tempStore = [];
+				for(var possible in matrix[i][j]){
+					//matrix[i][j][possible] 是一个 'vp' 之类的东西，当然也有可能是一个表示这个tag来源的数组，数组我们是不要的
+					if(typeof matrix[i][j][possible] == 'string'){
+					
+						//temp 现在是 ['s']，当然也有可能是一个 []
+						var temp = getTag(matrix[i][j][possible]);
+						var thisTag = matrix[i][j][possible];
+						//possibilityOfTemp 是 'vp' 变成 ['s'] 的概率，形似[.3],再乘上之前别的东西变成vp的联合概率得来
+						var possibilityOfTemp = getPossiblilty(matrix[i][j][possible])[0]*matrix[i][j][parseInt(possible)+1];
+
+
+						var isRoot = false;
+						while(!isRoot){
+							if(temp.length == 0){
+								isRoot = true;
+							}else{
+								tempStore.unshift(possibilityOfTemp);
+								tempStore.unshift(temp[0]);
+								//再放上 ['├','self','┤'] 表示这是从自己来的
+								tempStore.unshift(['├',i,'self',thisTag,j+1,'┤']);
+								
+
+								possibilityOfTemp = getPossiblilty(temp[0]);
+								thisTag = temp[0];
+								temp = getTag(temp[0]);
+							}
+						}
+					}
+				}
+				for(var k=tempStore.length-1;k>=0;k--){
+
+					matrix[i][j].unshift(tempStore[k]);
+				}	
+			}
+		}
+	}
+
+
+	//广度优先搜索二叉树
+	function fromTopDown(pointerArray) {
+		var openList = [pointerArray];
+		while(openList.length != 0){
+			
+			var underConsider = openList[openList.length-1];
+
+			if(underConsider[2] == 'self'){
+				//如果是自指的，就标记自己 ├,0,self,vp,4,┤ 中的 vp
+				$('#'+underConsider[1]).html($('#'+underConsider[1]).html()+' ( '+underConsider[3]+' ');
+				$('#'+underConsider[4]).html(' ) '+$('#'+underConsider[4]).html());
+				//在 0，3 里查找 vp，返回一个 [├,0,np,1,vp,8,┤]，插入 openList
+				openList.unshift( findTagInBlock(underConsider[3], matrix[underConsider[1]][underConsider[4]-1]) );
+				
+				openList.pop();
+			}else if(underConsider[1] == 'terminal') {
+				openList.pop();
+			}else{
+				//如果是指向外部的，[├,0,np,1,vp,8,┤] 中就有两个可以标记出来的 0,np,1  和  1,vp,8
+				$('#'+underConsider[1]).html($('#'+underConsider[1]).html()+' ('+' '+underConsider[2]+' ');
+				$('#'+underConsider[3]).html(' ) '+$('#'+underConsider[3]).html());
+
+				$('#'+underConsider[3]).html($('#'+underConsider[3]).html()+' ('+' '+underConsider[4]+' ');
+				$('#'+underConsider[5]).html(' ) '+$('#'+underConsider[5]).html());
+
+				
+				openList.unshift( findTagInBlock(underConsider[2], matrix[underConsider[1]][underConsider[3]-1]) );
+				openList.unshift( findTagInBlock(underConsider[4], matrix[underConsider[3]][underConsider[5]-1]) );
+				openList.pop();
+			}
+		}
+	}
+
+
+	//用括号括出分析树
+	if(antiAmbiguty){
+		var foundS = false;
+		for(var i=matrix.length-1;i>0;i--){
+			var cellOfFirstRow = matrix[0][i];
+			for(var item in cellOfFirstRow){
+				if(!foundS && typeof cellOfFirstRow[item] != 'string' && cellOfFirstRow[parseInt(item)+1] == 's'){
+					foundS = true;
+					//标记上 S
+					$('#'+cellOfFirstRow[item][1]).html($('#'+cellOfFirstRow[item][1]).html()+' ('+' '+cellOfFirstRow[parseInt(item)+1]+' ');
+					$('#'+cellOfFirstRow[item][cellOfFirstRow[item].length-2]).html(' )'+$('#'+cellOfFirstRow[item][cellOfFirstRow[item].length-2]).html());
+					fromTopDown( cellOfFirstRow[item] );
+				}
+			}
+		}
+	}
+
+
+
+
+	return matrix
+}
+
+
+
+
+
+function findTagInBlock(tag, block) {
+	for(var item in block){
+		if(typeof block[item] == 'object' && block[parseInt(item)+1] == tag){
+			//看看是不是在对角线上
+			
+			return block[item]
+		}
+	}
+}
+
+
+//找出数组中重复的部分，并返回包含重复部分的数组
+function isRepeat(ary){
+
+	var s = '';
+	for(var things in ary){
+		if(typeof ary[things] != 'object')
+			s += ary[things]+",";
+	}
+	var arys = [];
+	 
+	for(var i=0;i<ary.length;i++) {
+	 
+		if(s.replace(ary[i]+",","").indexOf(ary[i]+",")>-1) {
+			//上面这个if检测是否重复，先挖空然后看看这东西是不是还存在于挖空了的字符串里
+			var same = false;
+	 		for(var item in arys){
+	 			//看看是不是已经查过这个词的水表了，查过就不查第二次
+	 			if(arys[item] == ary[i]){
+	 				var same = true;
+	 			}
+	 
+ 			}
+ 			if(!same)
+				arys.push(ary[i]);
+		}
+ 
+	}
+
+	return arys;
+}
+
+//检查word是否在arr中有相同的存在
+function notIn(word,arr){
+	var notin = true;
+ 		for(var item in arr){
+ 			if(arr[item] == word){
+ 				var notin = false;
+ 		}
+ 
+	}
+	return notin
+}
+
+
+(function($){
+
+
+
+//默认设置
+var defaults = {
+	outerRadii: 200,
+	innerRadii: 90,
+	icons: {},
+	events: {1:function() {alert('aaa');closeMenu();},},
+
+};
+
+
+
+
+
+
+$.fn.onetwoRadial = function(options) {
+
+	//合并默认设置和玩家设置
+	var options = $.extend(defaults,options);
+	//返回jquery对象，以支持菊花链
+	return this.each(function(){
+
+
+		// var eventFunction = options.events[0];
+		// eventFunction();
+		// console.log(eventFunction);
+
+
+		$(this).bind('contextmenu', function(e) {
+			if(!e.ctrlKey){ // CTRL + Right Click => Standard Context Menu
+
+
+
+				
+
+				//环形菜单
+				createSectors('radialMenu',e.pageX,e.pageY,8,20,options.outerRadii,options.innerRadii,options.icons,options.events);
+				
+				$('svg').mouseup(function() {
+					closeMenu();
+				});
+
+
+			//返回false使得默认菜单不打开
+			return false;	
+			};
+		});
+	});
+};
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//工具函数
+function closeMenu() {
+	var svg = document.getElementById('radialMenu');
+	svg.parentNode.removeChild(svg);
+}
+
+
+function makeSVG(tag, attrs) {
+	var el= document.createElementNS('http://www.w3.org/2000/svg', tag);
+	for (var k in attrs)
+			el.setAttribute(k, attrs[k]);
+	return el;
+}
+
+
+function createSectors(thisClass, centerX, centerY, quantity, interval, bigRadii, smallRadii, iconArray, eventArray) {
+
+
+	//环分为两个部分，放图标的部分还有鼠标移过就触发事件的部分，下面这是事件触发部分的宽度
+	var triggerZoneRadii = 15;
+
+
+	var intervalRadian = parseFloat(interval)/parseFloat(bigRadii);
+	var sectorRadian = ( 2*Math.PI - intervalRadian*quantity )/quantity;
+	var rotateToVertical = ( 2*Math.PI - intervalRadian*quantity )/( quantity*2);
+	var pathPointList = [];
+
+
+	//做一个专门的svg，以点击中心为中心
+	var svg = makeSVG('svg',{id:thisClass});
+	svg.setAttribute('id', thisClass);
+	svg.setAttribute('style','left:'+(centerX-bigRadii)+'px; top:'+(centerY-bigRadii)+'px; width: '+(bigRadii*2)+'px; height: '+(bigRadii*2)+'px; position: absolute;'+';}');
+	document.body.appendChild(svg);
+
+
+	
+	
+
+
+	//先创建放图标用的大环
+	for(var i=0;i<parseInt(quantity);i++) {
+		//现在我们从竖直向上开始顺时针看蛤,用弧度数据结合圆的半径得到扇形路径中每个点之于鼠标点击中心的相对坐标，注意坐标系是从左下角计算的。
+		var turnRight = i*(intervalRadian + sectorRadian) - rotateToVertical;
+		var firstLineStart = [smallRadii*Math.sin(turnRight),smallRadii*Math.cos(turnRight)];
+		var firstLineEnd = [(bigRadii-triggerZoneRadii+1)*Math.sin(turnRight),(bigRadii-triggerZoneRadii+1)*Math.cos(turnRight)];
+		var secondLineStart = [(bigRadii-triggerZoneRadii+1)*Math.sin(turnRight+sectorRadian),(bigRadii-triggerZoneRadii+1)*Math.cos(turnRight+sectorRadian)];
+		var secondLineEnd = [smallRadii*Math.sin(turnRight+sectorRadian),smallRadii*Math.cos(turnRight+sectorRadian)];
+		
+
+		//共创和谐SVG 
+		var sector = makeSVG('path',{class: thisClass, d: 'M'+parseFloat(firstLineStart[0]+bigRadii)+' '+parseFloat(-firstLineStart[1]+bigRadii)+' L'+parseFloat(firstLineEnd[0]+bigRadii)+' '+parseFloat(-firstLineEnd[1]+bigRadii)+' A'+bigRadii+','+bigRadii+' 0 0 1 '+parseFloat(secondLineStart[0]+bigRadii)+' '+parseFloat(-secondLineStart[1]+bigRadii)+' L'+parseFloat(secondLineEnd[0]+bigRadii)+' '+parseFloat(-secondLineEnd[1]+bigRadii)+' A'+smallRadii+','+smallRadii+' 0 0 0 '+parseFloat(firstLineStart[0]+bigRadii)+' '+parseFloat(-firstLineStart[1]+bigRadii)+'Z'} );
+
+
+		// //加持事件
+		// sector.onmouseover = function(){
+		// 	console.log('in');
+		// }
+		// sector.onmouseout = function(){
+		// 	console.log('out');
+		// }
+
+
+
+
+
+
+
+		var g = makeSVG('g');
+		g.appendChild(sector);
+
+
+		//加上图标
+		var icon = '';
+		if(iconArray != undefined && iconArray[i] != undefined){
+			var iconWidth = (bigRadii-smallRadii)*0.6;
+			var y = (firstLineStart[1]+firstLineEnd[1]+secondLineStart[1]+secondLineEnd[1])/4;
+			var x = (firstLineStart[0]+firstLineEnd[0]+secondLineStart[0]+secondLineEnd[0])/4;
+			var image = makeSVG('image',{x: x, y: y,
+				width: iconWidth, height: iconWidth, 'xlink:href':iconArray[i]});
+			g.appendChild(image);
+			
+		}
+
+
+		//做一个控制动画的东西，插到每一个g标签里（动画标签只有在g标签里才生效）
+		var animateRotate = makeSVG('animateTransform',{attributeName:"transform", begin:"0s", dur:"0.2s", type:"rotate", from:"0 "+bigRadii+" "+bigRadii, to:"90 "+bigRadii+" "+bigRadii});
+		g.appendChild(animateRotate);
+
+
+
+		var animateOpacity = makeSVG('animate',{attributeName:"opacity", begin:"0s", dur:"0.2s", from:"0", to:"1"});
+		g.appendChild(animateOpacity);
+
+
+		document.getElementById(thisClass).appendChild(g);
+	}
+
+
+	//再创建触发操作用的小环
+	for(var i=0;i<parseInt(quantity);i++) {
+		//现在我们从竖直向上开始顺时针转动,用弧度数据结合圆的半径得到扇形路径中每个点之于鼠标点击中心的相对坐标，注意坐标系是从左下角计算的。
+		var turnRight = i*(intervalRadian + sectorRadian) - rotateToVertical;
+		var firstLineStart = [(bigRadii-triggerZoneRadii)*Math.sin(turnRight),(bigRadii-triggerZoneRadii)*Math.cos(turnRight)];
+		var firstLineEnd = [bigRadii*Math.sin(turnRight),bigRadii*Math.cos(turnRight)];
+		var secondLineStart = [bigRadii*Math.sin(turnRight+sectorRadian),bigRadii*Math.cos(turnRight+sectorRadian)];
+		var secondLineEnd = [(bigRadii-triggerZoneRadii)*Math.sin(turnRight+sectorRadian),(bigRadii-triggerZoneRadii)*Math.cos(turnRight+sectorRadian)];
+		
+
+		//共创和谐SVG 
+		var sector = makeSVG('path',{class: thisClass, d: 'M'+parseFloat(firstLineStart[0]+bigRadii)+' '+parseFloat(-firstLineStart[1]+bigRadii)+' L'+parseFloat(firstLineEnd[0]+bigRadii)+' '+parseFloat(-firstLineEnd[1]+bigRadii)+' A'+bigRadii+','+bigRadii+' 0 0 1 '+parseFloat(secondLineStart[0]+bigRadii)+' '+parseFloat(-secondLineStart[1]+bigRadii)+' L'+parseFloat(secondLineEnd[0]+bigRadii)+' '+parseFloat(-secondLineEnd[1]+bigRadii)+' A'+(bigRadii-triggerZoneRadii)+','+(bigRadii-triggerZoneRadii)+' 0 0 0 '+parseFloat(firstLineStart[0]+bigRadii)+' '+parseFloat(-firstLineStart[1]+bigRadii)+'Z'} );
+
+
+		//加持函数
+		if(eventArray != undefined && eventArray[i] != undefined){
+			
+			(function(eventFunction) {
+				$(sector).mouseout(function() {eventFunction();closeMenu();});
+			})(eventArray[i]);
+
+		}else{
+			sector.onmouseout = function() {closeMenu();};
+		}
+
+
+
+		
+
+
+
+
+		var g = makeSVG('g');
+		g.appendChild(sector);
+
+
+		//做一个控制动画的东西，插到每一个g标签里（动画标签只有在g标签里才生效）
+		var animateRotate = makeSVG('animateTransform',{attributeName:"transform", begin:"0s", dur:"0.2s", type:"rotate", from:"0 "+bigRadii+" "+bigRadii, to:"90 "+bigRadii+" "+bigRadii});
+		g.appendChild(animateRotate);
+
+
+
+		var animateOpacity = makeSVG('animate',{attributeName:"opacity", begin:"0s", dur:"0.2s", from:"0", to:"1"});
+		g.appendChild(animateOpacity);
+
+
+		document.getElementById(thisClass).appendChild(g);
+	}
+
+
+
+
+
+	return pathPointList
+}
+
+
+}(jQuery));
+
+
+
+
+
+	</script>
+
+
+  </head>
+  <body>
+  
+
+
+  <div class="black">
+  	
+  <input placeholder='输入你喜欢的文字吧！'>
+  	
+
+  </input>
+
+
+  </div>
+
+
+
+  <div id='wrapper' class='black'>
+  	
+
+
+  </div>
+
+  <div id='antiAmbiguty' class="black red">反！歧！义！</div>
+
+
+
+
+
+  </body>
+</html>
